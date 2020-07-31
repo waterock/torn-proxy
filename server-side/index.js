@@ -15,7 +15,7 @@ const getKeysForUserId = async (userId) => {
     return await database.query('select `key`, user_id, description, created_at from `keys` where user_id = ? order by created_at asc', [userId]);
 };
 
-app.post('/authenticate', async (request, response) => {
+app.post('/api/authenticate', async (request, response) => {
     const result = await fetch('https://api.torn.com/user/?selections=basic&key=' + request.body.key);
     const json = await result.json();
     const { error, player_id, name } = json;
@@ -40,12 +40,12 @@ app.post('/authenticate', async (request, response) => {
     return response.json({ id: player_id, name });
 });
 
-app.get('/keys', async (request, response) => {
+app.get('/api/keys', async (request, response) => {
     const keys = await getKeysForUserId(request.query.user_id);
     return response.json(keys);
 });
 
-app.post('/keys', async (request, response) => {
+app.post('/api/keys', async (request, response) => {
     await database.query('insert into `keys` (`key`, user_id, description) values (?, ?, ?)', [
         crypto.randomBytes(16).toString('hex'),
         request.body.user_id,
