@@ -12,7 +12,7 @@ const database = require('./database');
 const fetch = require('node-fetch');
 
 const getKeysForUserId = async (userId) => {
-    return await database.query('select `key`, user_id, description, created_at from `keys` where user_id = ? order by created_at asc', [userId]);
+    return await database.query('select `key`, `user_id`, `description`, `created_at` from `keys` where `user_id` = ? order by `created_at` asc', [userId]);
 };
 
 app.post('/api/authenticate', async (request, response) => {
@@ -27,14 +27,7 @@ app.post('/api/authenticate', async (request, response) => {
 
     const [iv, encryptedKey] = encryption.encrypt(secret, request.body.key);
 
-    const insertOrUpdateUserQuery = `
-    insert into users (id, name, iv, torn_key)
-    values (?, ?, ?, ?)
-    on duplicate key update
-      name = values(name),
-      iv = values(iv),
-      torn_key = values(torn_key)`;
-
+    const insertOrUpdateUserQuery = 'insert into users (`id`, `name`, `iv`, `torn_key`) values (?, ?, ?, ?) on duplicate key update `name` = values(`name`), `iv` = values(`iv`), `torn_key` = values(`torn_key`)';
     await database.query(insertOrUpdateUserQuery, [player_id, name, iv, encryptedKey]);
 
     return response.json({ id: player_id, name });
@@ -46,7 +39,7 @@ app.get('/api/keys', async (request, response) => {
 });
 
 app.post('/api/keys', async (request, response) => {
-    await database.query('insert into `keys` (`key`, user_id, description) values (?, ?, ?)', [
+    await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
         crypto.randomBytes(16).toString('hex'),
         request.body.user_id,
         request.body.description.trim().substr(0, 255),
