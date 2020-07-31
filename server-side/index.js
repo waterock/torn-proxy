@@ -1,6 +1,6 @@
 require('dotenv').config();
 const crypto = require('crypto');
-const secret = Buffer.from(process.env.ENCRYPTION_SECRET, 'hex');
+const secret = Buffer.from(process.env.ENCRYPTION_SECRET, 'base64');
 const express = require('express');
 const cors = require('cors');
 const app = express();
