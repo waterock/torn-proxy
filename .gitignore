@@ -1,0 +1,8 @@
+/.idea
+
+/client-side/node_modules
+/client-side/build
+/client-side/.env
+
+/server-side/node_modules
+/server-side/.env
