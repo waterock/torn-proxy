@@ -23,7 +23,7 @@ const ProxyKeys = () => {
             setLoading(false);
             setKeys(keys);
         })();
-    }, [app.serverBaseUrl]);
+    }, []);
 
     const createKey = async (event: FormEvent) => {
         event.preventDefault();
