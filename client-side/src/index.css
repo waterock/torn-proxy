@@ -28,3 +28,7 @@ button {
   border: none;
   margin-right: 0.5rem;
 }
+
+p {
+  margin-top: 0;
+}
