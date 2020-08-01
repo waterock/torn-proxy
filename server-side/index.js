@@ -76,7 +76,7 @@ app.post('/api/keys', async (request, response) => {
             userId,
             request.body.description.trim().substr(0, 255),
         ]);
-        const keys = await getKeysForUserId(request.body.user_id);
+        const keys = await getKeysForUserId(userId);
         return response.json(keys);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });

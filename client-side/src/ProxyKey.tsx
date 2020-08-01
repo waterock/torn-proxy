@@ -17,7 +17,7 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle }) => {
             </tr>
             <tr className={styles.keyRow + ' ' + (useAltStyle ? styles.altRow : '')}>
                 <td colSpan={3}>
-                    {key.key}
+                    <span className={styles.key}>{key.key}</span>
                 </td>
             </tr>
         </>
