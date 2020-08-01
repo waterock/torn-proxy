@@ -15,6 +15,7 @@ function App() {
     };
 
     const lock = (event: MouseEvent) => {
+        // todo use request to unset cookie from server (because http only cookie)
         event.preventDefault();
         setUser(null);
     };

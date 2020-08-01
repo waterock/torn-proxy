@@ -13,15 +13,23 @@ const ProxyKeys = () => {
     const [keys, setKeys] = useState<Key[]>([]);
     const [newKeyDescription, setNewKeyDescription] = useState<string>('');
     const [savingNewKey, setSavingNewKey] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(true);
         (async () => {
-            const response = await fetch(app.serverBaseUrl + '/api/keys?user_id=' + app.user?.id);
-            const keys: Key[] = (await response.json()).map(conversion.convertKeyRecordToEntity);
+            const response = await fetch(app.serverBaseUrl + '/api/keys', {
+                credentials: 'include',
+            });
+
+            if (response.status === 200) {
+                const keys: Key[] = (await response.json()).map(conversion.convertKeyRecordToEntity);
+                setKeys(keys);
+            } else {
+                setErrorMessage((await response.json()).error_message || 'some error');
+            }
 
             setLoading(false);
-            setKeys(keys);
         })();
     }, []);
 
@@ -46,6 +54,10 @@ const ProxyKeys = () => {
         setNewKeyDescription('');
         setSavingNewKey(false);
     };
+
+    if (errorMessage) {
+        return <span>Error response from server: {errorMessage}. Please refresh the page.</span>;
+    }
 
     if (loading) {
         return <span>Loading...</span>;

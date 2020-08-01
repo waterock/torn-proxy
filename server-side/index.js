@@ -14,7 +14,8 @@ const port = 3001;
 const encryption = require('./encryption.js');
 const database = require('./database');
 const fetch = require('node-fetch');
-const jwt = require('jsonwebtoken');
+const jsonwebtoken = require('jsonwebtoken');
+const jwt = require('./jwt');
 
 const getKeysForUserId = async (userId) => {
     return await database.query('select `key`, `user_id`, `description`, `created_at` from `keys` where `user_id` = ? order by `created_at` asc', [userId]);
@@ -42,7 +43,7 @@ app.post('/api/authenticate', async (request, response) => {
     const iat = Math.floor(Date.now() / 1000);
     const exp = Math.floor(expires / 1000);
 
-    jwt.sign(
+    jsonwebtoken.sign(
         { sub, iat, exp },
         Buffer.from(process.env.JWT_SECRET, 'base64'),
         (error, token) => {
@@ -58,19 +59,28 @@ app.post('/api/authenticate', async (request, response) => {
 });
 
 app.get('/api/keys', async (request, response) => {
-    const keys = await getKeysForUserId(request.query.user_id);
-    return response.json(keys);
+    try {
+        const userId = await jwt.getUserId(request.cookies.jwt);
+        const keys = await getKeysForUserId(userId);
+        return response.json(keys);
+    } catch (error) {
+        return response.status(401).json({ error_message: error.message });
+    }
 });
 
 app.post('/api/keys', async (request, response) => {
-    await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
-        crypto.randomBytes(16).toString('hex'),
-        request.body.user_id,
-        request.body.description.trim().substr(0, 255),
-    ]);
-
-    const keys = await getKeysForUserId(request.body.user_id);
-    return response.json(keys);
+    try {
+        const userId = await jwt.getUserId(request.cookies.jwt);
+        await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
+            crypto.randomBytes(16).toString('hex'),
+            userId,
+            request.body.description.trim().substr(0, 255),
+        ]);
+        const keys = await getKeysForUserId(request.body.user_id);
+        return response.json(keys);
+    } catch (error) {
+        return response.status(401).json({ error_message: error.message });
+    }
 });
 
 app.listen(port, () => console.log(`TORN proxy server listening at http://localhost:${port}`));
