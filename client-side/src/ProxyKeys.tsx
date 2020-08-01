@@ -17,7 +17,7 @@ const ProxyKeys = () => {
     useEffect(() => {
         setLoading(true);
         (async () => {
-            const response = await fetch(app.serverBaseUrl + '/keys?user_id=' + app.user?.id);
+            const response = await fetch(app.serverBaseUrl + '/api/keys?user_id=' + app.user?.id);
             const keys: Key[] = (await response.json()).map(conversion.convertKeyRecordToEntity);
 
             setLoading(false);
@@ -35,7 +35,7 @@ const ProxyKeys = () => {
         };
 
         setSavingNewKey(true);
-        const response = await fetch(app.serverBaseUrl + '/keys', {
+        const response = await fetch(app.serverBaseUrl + '/api/keys', {
             method: 'post',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(postBody),
