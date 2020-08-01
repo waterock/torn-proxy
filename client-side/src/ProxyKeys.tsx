@@ -13,32 +13,33 @@ const ProxyKeys = () => {
     const [keys, setKeys] = useState<Key[]>([]);
     const [newKeyDescription, setNewKeyDescription] = useState<string>('');
     const [savingNewKey, setSavingNewKey] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(true);
         (async () => {
-            const response = await fetch(app.serverBaseUrl + '/keys?user_id=' + app.user?.id);
-            const keys: Key[] = (await response.json()).map(conversion.convertKeyRecordToEntity);
+            const response = await fetch(app.serverBaseUrl + '/api/keys', { credentials: 'include' });
+
+            if (response.status === 200) {
+                const keys: Key[] = (await response.json()).map(conversion.convertKeyRecordToEntity);
+                setKeys(keys);
+            } else {
+                setErrorMessage((await response.json()).error_message || 'some error');
+            }
 
             setLoading(false);
-            setKeys(keys);
         })();
     }, []);
 
     const createKey = async (event: FormEvent) => {
         event.preventDefault();
 
-        // todo don't include user_id in post because easily fakeable -> use http only cookie with jwt token instead
-        const postBody = {
-            user_id: app.user?.id,
-            description: newKeyDescription,
-        };
-
         setSavingNewKey(true);
-        const response = await fetch(app.serverBaseUrl + '/keys', {
+        const response = await fetch(app.serverBaseUrl + '/api/keys', {
+            credentials: 'include',
             method: 'post',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(postBody),
+            body: JSON.stringify({ description: newKeyDescription }),
         })
         const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);
         setKeys(keys);
@@ -46,6 +47,10 @@ const ProxyKeys = () => {
         setNewKeyDescription('');
         setSavingNewKey(false);
     };
+
+    if (errorMessage) {
+        return <span>Error response from server: {errorMessage}. Please refresh the page.</span>;
+    }
 
     if (loading) {
         return <span>Loading...</span>;
@@ -56,7 +61,7 @@ const ProxyKeys = () => {
             <table className={styles.root}>
                 <thead>
                 <tr>
-                    <th>Key</th>
+                    <th>Description</th>
                     <th>Created</th>
                     <th>Actions</th>
                 </tr>

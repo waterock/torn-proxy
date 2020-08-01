@@ -1,15 +1,22 @@
-tr.metaRow {
-  td {
-    padding-bottom: 0;
-  }
+tr.metaRow td {
+  padding-bottom: 0;
 }
 
-tr.keyRow {
-  td {
-    padding-top: 0;
-  }
+tr.keyRow td {
+  padding-top: 0;
 }
 
 tr.altRow {
   background: #eee;
+}
+
+.key {
+  display: inline-block;
+  padding: 0.15rem 0.75rem;
+  background: #b0c4de2a;
+  color: #4682b4;
+  font-weight: 600;
+  border-radius: 0.2rem;
+  border: 1px solid #4682b455;
+  margin: 0.5rem 0;
 }

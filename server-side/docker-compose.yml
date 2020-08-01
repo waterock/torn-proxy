@@ -6,7 +6,7 @@ services:
     user: "node"
     working_dir: /home/node/app
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
     volumes:
       - ./:/home/node/app
     ports:

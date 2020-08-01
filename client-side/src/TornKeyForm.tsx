@@ -20,7 +20,8 @@ const TornKeyForm: FC<Props> = ({ onAuthenticated }) => {
         setChecking(true);
         setLastCheckWasError(false);
 
-        const response = await fetch(app.serverBaseUrl + '/authenticate', {
+        const response = await fetch(app.serverBaseUrl + '/api/authenticate', {
+            credentials: 'include',
             method: 'post',
             headers: {
                 'Content-Type': 'application/json',
