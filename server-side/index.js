@@ -21,6 +21,14 @@ const getKeysForUserId = async (userId) => {
     return await database.query('select `key`, `user_id`, `description`, `created_at` from `keys` where `user_id` = ? order by `created_at` asc', [userId]);
 };
 
+const getCookieOptions = () => {
+    return {
+        secure: process.env.NODE_ENV !== 'development',
+        httpOnly: true,
+        sameSite: true,
+    };
+};
+
 app.post('/api/authenticate', async (request, response) => {
     const result = await fetch('https://api.torn.com/user/?selections=basic&key=' + request.body.key);
     const json = await result.json();
@@ -47,15 +55,17 @@ app.post('/api/authenticate', async (request, response) => {
         { sub, iat, exp },
         Buffer.from(process.env.JWT_SECRET, 'base64'),
         (error, token) => {
-            response.cookie('jwt', token, {
-                expires,
-                secure: process.env.NODE_ENV !== 'development',
-                httpOnly: true,
-                sameSite: true,
-            });
+            response.cookie('jwt', token, { ...getCookieOptions(), expires });
             return response.json({ id: player_id, name, token });
         }
     );
+});
+
+app.post('/api/lock', (request, response) => {
+    return response
+        .clearCookie('jwt', getCookieOptions())
+        .status(201)
+        .json({});
 });
 
 app.get('/api/keys', async (request, response) => {

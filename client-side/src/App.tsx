@@ -9,19 +9,19 @@ import User from './interfaces/User';
 function App() {
     const [user, setUser] = useState<User | null>(null);
 
-    const appContext: AppContextInterface = {
+    const appContextValue: AppContextInterface = {
         serverBaseUrl: process.env.REACT_APP_SERVER_BASE_URL!,
         user,
     };
 
     const lock = (event: MouseEvent) => {
-        // todo use request to unset cookie from server (because http only cookie)
         event.preventDefault();
         setUser(null);
+        fetch(appContextValue.serverBaseUrl + '/api/lock', { credentials: 'include', method: 'post' });
     };
 
     return (
-        <AppContext.Provider value={appContext}>
+        <AppContext.Provider value={appContextValue}>
             <div className={styles.root}>
                 <h1>TORN proxy</h1>
                 <p>The only place that needs to know your TORN API key.</p>
