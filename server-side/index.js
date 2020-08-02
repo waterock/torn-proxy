@@ -1,8 +1,8 @@
 require('dotenv').config();
 const crypto = require('crypto');
-const secret = Buffer.from(process.env.ENCRYPTION_SECRET, 'base64');
 const express = require('express');
 const cookieParser = require('cookie-parser')
+const proxy = require('express-http-proxy');
 const app = express();
 if (process.env.NODE_ENV === 'development') {
     const cors = require('cors');
@@ -39,7 +39,7 @@ app.post('/api/authenticate', async (request, response) => {
         return response.json(error);
     }
 
-    const [iv, encryptedKey] = encryption.encrypt(secret, request.body.key);
+    const [iv, encryptedKey] = encryption.encrypt(request.body.key);
 
     const insertOrUpdateUserQuery = 'insert into users (`id`, `name`, `iv`, `torn_key`) values (?, ?, ?, ?) on duplicate key update `name` = values(`name`), `iv` = values(`iv`), `torn_key` = values(`torn_key`)';
     await database.query(insertOrUpdateUserQuery, [player_id, name, iv, encryptedKey]);
@@ -91,6 +91,51 @@ app.post('/api/keys', async (request, response) => {
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
     }
+});
+
+app.use('/api/torn/v1', proxy('api.torn.com', {
+    https: true,
+    proxyReqPathResolver(request) {
+        return new Promise(async (resolve, reject) => {
+            if ((request.query.key || '').length !== 32) {
+                request._error = {
+                    code: 2,
+                    error: 'use a proxy key (32 hex characters)',
+                    proxy: true,
+                };
+                return reject();
+            }
+
+            const params = { ...request.query };
+            delete params.key;
+
+            const sql = 'select `iv`, `torn_key` from `users` inner join `keys` on `keys`.`user_id` = `users`.`id` and `keys`.`key` = ?';
+            const [encryptedKey] = await database.query(sql, [request.query.key]);
+
+            if (encryptedKey === undefined) {
+                request._error = {
+                    code: 2,
+                    error: 'invalid proxy key',
+                    proxy: true,
+                };
+                return reject();
+            }
+
+            params.key = encryption.decrypt(encryptedKey.iv, encryptedKey.torn_key);
+            const paramsArray = Object.entries(params).map(([key, value]) => `${key}=${value}`);
+
+            resolve(request.url.split('?').shift() + '?' + paramsArray.join('&'));
+        });
+    },
+})).get('/api/torn/v1', (request, response) => {
+    // this only executes if the proxy middleware rejects
+    response
+        .status(401)
+        .json(request._error || {
+            code: 0,
+            error: 'undefined error',
+            proxy: true,
+        });
 });
 
 app.listen(port, () => console.log(`TORN proxy server listening at http://localhost:${port}`));

@@ -2,18 +2,20 @@ const crypto = require('crypto');
 const algorithm = 'aes-256-cbc';
 
 module.exports = {
-    encrypt(secret, value) {
+    encrypt(value) {
+        const secret = Buffer.from(process.env.ENCRYPTION_SECRET, 'base64');
         const iv = crypto.randomBytes(16);
-        let cipher = crypto.createCipheriv(algorithm, Buffer.from(secret), iv);
+        const cipher = crypto.createCipheriv(algorithm, secret, iv);
         let encrypted = cipher.update(value);
         encrypted = Buffer.concat([encrypted, cipher.final()]);
-        return [iv.toString('hex'), encrypted.toString('hex')];
+        return [iv.toString('base64'), encrypted.toString('base64')];
     },
-    decrypt(secret, iv, value) {
-        let ivBuffer = Buffer.from(iv, 'hex');
-        let encryptedText = Buffer.from(value, 'hex');
-        let decipher = crypto.createDecipheriv(algorithm, Buffer.from(secret), ivBuffer);
-        let decrypted = decipher.update(encryptedText);
+    decrypt(ivBase64, valueBase64) {
+        const secret = Buffer.from(process.env.ENCRYPTION_SECRET, 'base64');
+        const iv = Buffer.from(ivBase64, 'base64');
+        const decipher = crypto.createDecipheriv(algorithm, secret, iv);
+        const encrypted = Buffer.from(valueBase64, 'base64');
+        let decrypted = decipher.update(encrypted);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         return decrypted.toString();
     },
