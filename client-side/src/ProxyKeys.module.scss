@@ -20,3 +20,13 @@
     text-align: left;
   }
 }
+
+.lockAnchor {
+  color: indianred;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

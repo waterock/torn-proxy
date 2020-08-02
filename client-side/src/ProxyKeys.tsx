@@ -1,11 +1,15 @@
-import React, { FormEvent, useContext, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
 import ProxyKey from './ProxyKey';
 import AppContext from './AppContext';
 import styles from './ProxyKeys.module.scss';
 import Key from './interfaces/Key';
 import useConversion from './hooks/useConversion';
 
-const ProxyKeys = () => {
+interface Props {
+    onLock(): void
+}
+
+const ProxyKeys: FC<Props> = ({ onLock }) => {
     const app = useContext(AppContext);
     const conversion = useConversion();
 
@@ -31,7 +35,12 @@ const ProxyKeys = () => {
         })();
     }, []);
 
-    const createKey = async (event: FormEvent) => {
+    const lock = (event: React.MouseEvent) => {
+        event.preventDefault();
+        onLock();
+    };
+
+    const createKey = async (event: React.FormEvent) => {
         event.preventDefault();
 
         setSavingNewKey(true);
@@ -58,6 +67,7 @@ const ProxyKeys = () => {
 
     return (
         <>
+            <p>Hello, {app.user?.name} [{app.user?.id}] <a href="#" className={styles.lockAnchor} onClick={lock}>Lock</a></p>
             <table className={styles.root}>
                 <thead>
                 <tr>

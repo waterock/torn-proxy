@@ -3,7 +3,7 @@ tr.metaRow td {
 }
 
 tr.keyRow td {
-  padding-top: 0;
+  padding-bottom: 0.5rem;
 }
 
 tr.altRow {
@@ -11,12 +11,6 @@ tr.altRow {
 }
 
 .key {
-  display: inline-block;
-  padding: 0.15rem 0.75rem;
-  background: #b0c4de2a;
   color: #4682b4;
-  font-weight: 600;
-  border-radius: 0.2rem;
-  border: 1px solid #4682b455;
-  margin: 0.5rem 0;
+  font-size: 0.9rem;
 }

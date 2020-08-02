@@ -56,7 +56,7 @@ app.post('/api/authenticate', async (request, response) => {
         Buffer.from(process.env.JWT_SECRET, 'base64'),
         (error, token) => {
             response.cookie('jwt', token, { ...getCookieOptions(), expires });
-            return response.json({ id: player_id, name, token });
+            return response.json({ id: player_id, name });
         }
     );
 });

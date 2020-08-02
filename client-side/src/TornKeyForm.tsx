@@ -41,8 +41,6 @@ const TornKeyForm: FC<Props> = ({ onAuthenticated }) => {
 
     return (
         <form onSubmit={submit}>
-            <h2>Authenticate</h2>
-            <p>Enter your TORN API key:</p>
             <input className={lastCheckWasError ? styles.wrongKey : ''} type="text" value={tornKey} onChange={(event) => setTornKey(event.target.value)} disabled={checking}/>
             <input type="submit" disabled={checking} value="Unlock"/>
             {checking && <span>checking...</span>}
