@@ -30,10 +30,7 @@ function App() {
 
                 {user === null && <TornKeyForm onAuthenticated={setUser}/>}
 
-                <div className={styles.myProxyKeysHeading}>
-                    <h2>My proxy keys</h2>
-                    {user !== null && <button onClick={lock}>Lock</button>}
-                </div>
+                <h2>My proxy keys {user !== null && <button onClick={lock}>Lock</button>}</h2>
                 {user === null && <p>Locked. Enter your TORN API key first.</p>}
                 {user !== null && <ProxyKeys/>}
 
