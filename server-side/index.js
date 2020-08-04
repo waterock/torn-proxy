@@ -18,7 +18,12 @@ const jsonwebtoken = require('jsonwebtoken');
 const jwt = require('./jwt');
 
 const getKeysForUserId = async (userId) => {
-    return await database.query('select `key`, `user_id`, `description`, `created_at` from `keys` where `user_id` = ? order by `created_at` asc', [userId]);
+    return await database.query([
+        'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
+        'from `keys`',
+        'where `user_id` = ? and `revoked_at` is null',
+        'order by `created_at` asc',
+    ].join(' '), [userId]);
 };
 
 const getCookieOptions = () => {
@@ -93,6 +98,20 @@ app.post('/api/keys', async (request, response) => {
     }
 });
 
+app.delete('/api/keys', async (request, response) => {
+    try {
+        const userId = await jwt.getUserId(request.cookies.jwt);
+        await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
+            new Date(),
+            request.query.key || '',
+        ]);
+        const keys = await getKeysForUserId(userId);
+        return response.json(keys);
+    } catch (error) {
+        return response.status(401).json({ error_message: error.message });
+    }
+});
+
 app.use('/', proxy('api.torn.com', {
     https: true,
     proxyReqPathResolver(request) {
@@ -109,7 +128,7 @@ app.use('/', proxy('api.torn.com', {
             const params = { ...request.query };
             delete params.key;
 
-            const sql = 'select `iv`, `torn_key` from `users` inner join `keys` on `keys`.`user_id` = `users`.`id` and `keys`.`key` = ?';
+            const sql = 'select `iv`, `torn_key` from `users` inner join `keys` on `keys`.`user_id` = `users`.`id` where `key` = ? and `revoked_at` is null';
             const [encryptedKey] = await database.query(sql, [request.query.key]);
 
             if (encryptedKey === undefined) {

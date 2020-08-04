@@ -3,4 +3,5 @@ export default interface KeyRecord {
     user_id: number
     description: string
     created_at: string
+    revoked_at: string | null
 }

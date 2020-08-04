@@ -3,4 +3,5 @@ export default interface Key {
     userId: number
     description: string
     createdAt: Date
+    revokedAt: Date | null
 }

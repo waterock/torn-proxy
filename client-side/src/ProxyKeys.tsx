@@ -82,6 +82,7 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
                         key={key.key}
                         keyEntity={key}
                         useAltStyle={i % 2 !== 0}
+                        onKeyRevoked={setKeys}
                     />
                 ))}
                 </tbody>
