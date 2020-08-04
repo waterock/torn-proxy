@@ -66,6 +66,20 @@ app.post('/api/authenticate', async (request, response) => {
     );
 });
 
+app.get('/api/me', async (request, response) => {
+    try {
+        const userId = await jwt.getUserId(request.cookies.jwt);
+        const results = await database.query('select `id`, `name` from `users` where `id` = ?', [userId]);
+        const [user] = results;
+        if (user === undefined) {
+            throw Error(`User [${userId}] not found`);
+        }
+        return response.json(user);
+    } catch (error) {
+        return response.status(401).json({ error_message: error.message });
+    }
+});
+
 app.post('/api/lock', (request, response) => {
     return response
         .clearCookie('jwt', getCookieOptions())

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './App.module.scss';
 import TornKeyForm from './TornKeyForm';
 import ProxyKeys from './ProxyKeys';
@@ -13,6 +13,17 @@ function App() {
         serverBaseUrl: process.env.REACT_APP_SERVER_BASE_URL!,
         user,
     };
+
+    useEffect(() => {
+        // Make a request that responds with a 200 only if the http-only jwt is still valid.
+        (async () => {
+            const response = await fetch(appContextValue.serverBaseUrl + '/api/me', { credentials: 'include' });
+            if (response.status === 200) {
+                const me: User = await response.json();
+                setUser(me);
+            }
+        })();
+    }, []);
 
     const lock = () => {
         setUser(null);
