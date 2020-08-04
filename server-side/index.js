@@ -93,7 +93,7 @@ app.post('/api/keys', async (request, response) => {
     }
 });
 
-app.use('/api/torn/v1', proxy('api.torn.com', {
+app.use('/', proxy('api.torn.com', {
     https: true,
     proxyReqPathResolver(request) {
         return new Promise(async (resolve, reject) => {
@@ -127,7 +127,7 @@ app.use('/api/torn/v1', proxy('api.torn.com', {
             resolve(request.url.split('?').shift() + '?' + paramsArray.join('&'));
         });
     },
-})).get('/api/torn/v1', (request, response) => {
+})).get('/', (request, response) => {
     // this only executes if the proxy middleware rejects
     response
         .status(401)
