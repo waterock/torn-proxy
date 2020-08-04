@@ -47,6 +47,9 @@ function App() {
                         <Faq question="Okay, but what about leaks?" answer="Your TORN key is encrypted before it's stored. If the database is ever accessed by a third party, they can see your proxy keys but not your TORN key. If ever does leak I'll be transparent about it so you can take action."/>
                         <Faq question="Why are proxy keys not encrypted?" answer="To keep the proxy service as fast as possible. With every request, I need to look up the TORN key that belongs to the given proxy key and forward the request to TORN. I need to be able to efficiently query the proxy keys table."/>
                         <Faq question="Roadmap?" answer="I plan on adding permissions. Simple ones at first, separating public from private data. That way, apps can use your key to fetch market info but not sensitive data such as battle stats."/>
+                        <Faq question="I'm a developer, how do I implement this?">
+                            Check out the <a href="https://github.com/sulsay/torn-proxy" target="_blank" rel="noopener noreferrer">source code</a> and the readme.md in the root for instructions.
+                        </Faq>
                     </>
                 )}
             </div>
