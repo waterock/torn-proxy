@@ -22,7 +22,7 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked, onKeyR
         event.preventDefault();
 
         setRevoking(true);
-        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&revoked_at=${new Date().toString}`, {
+        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&revoked_at=${new Date().toString()}`, {
             method: 'patch',
             credentials: 'include'
         });
