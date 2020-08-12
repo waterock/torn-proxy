@@ -10,28 +10,110 @@ if (process.env.NODE_ENV === 'development') {
 }
 app.use(express.json());
 app.use(cookieParser());
-const port = 3001;
 const encryption = require('./encryption.js');
 const database = require('./database');
 const fetch = require('node-fetch');
 const jsonwebtoken = require('jsonwebtoken');
 const jwt = require('./jwt');
 
-const getKeysForUserId = async (userId) => {
+const PORT = 3001;
+const PROXY_KEY_LENGTH = 32;
+
+async function getKeysForUserId(userId) {
     return await database.query([
         'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
         'from `keys`',
         'where `user_id` = ? and `revoked_at` is null',
         'order by `created_at` asc',
     ].join(' '), [userId]);
-};
+}
 
-const getCookieOptions = () => {
+function getCookieOptions() {
     return {
         secure: process.env.NODE_ENV !== 'development',
         httpOnly: true,
         sameSite: true,
     };
+}
+
+async function getTornKey(proxyKey) {
+    const [encryptedKey] = await database.query([
+        'select `iv`, `torn_key`',
+        'from `users`',
+        'inner join `keys` on `keys`.`user_id` = `users`.`id`',
+        'where `key` = ? and `revoked_at` is null',
+    ].join(' '), [proxyKey]);
+
+    if (encryptedKey === undefined) {
+        return null;
+    }
+    return encryption.decrypt(encryptedKey.iv, encryptedKey.torn_key);
+}
+
+function getParamsArray(request, tornKey) {
+    return Object.entries({ ...request.query, key: tornKey })
+        .map(([key, value]) => `${key}=${value}`);
+}
+
+function resolvePathForTornStats(request) {
+    return new Promise(async (resolve, reject) => {
+        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
+            request._error = {
+                error: 'ERROR: User not found.',
+                proxy: true,
+            };
+            return reject();
+        }
+
+        const tornKey = await getTornKey(request.query.key);
+        if (!tornKey) {
+            request._error = {
+                error: 'ERROR: User not found.',
+                proxy: true,
+            };
+            return reject();
+        }
+
+        resolve('/api.php?' + getParamsArray(request, tornKey).join('&'));
+    });
+}
+
+function resolvePathForTorn(request) {
+    return new Promise(async (resolve, reject) => {
+        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
+            request._error = {
+                code: 2,
+                error: 'Incorrect Key',
+                proxy: true,
+            };
+            return reject();
+        }
+
+        const tornKey = await getTornKey(request.query.key);
+        if (!tornKey) {
+            request._error = {
+                code: 2,
+                error: 'Incorrect Key',
+                proxy: true,
+            };
+            return reject();
+        }
+
+        const endpoint = request.url.split('?').shift();
+        const params = getParamsArray(request, tornKey);
+
+        resolve(`${endpoint}?${params.join('&')}`);
+    });
+}
+
+const proxyOptions = {
+    https: true,
+    proxyReqPathResolver(request) {
+        if (request.url.startsWith('/tornstats/api.php')) {
+            return resolvePathForTornStats(request);
+        }
+        return resolvePathForTorn(request);
+    },
 };
 
 app.post('/api/authenticate', async (request, response) => {
@@ -126,49 +208,21 @@ app.delete('/api/keys', async (request, response) => {
     }
 });
 
-app.use('/', proxy('api.torn.com', {
-    https: true,
-    proxyReqPathResolver(request) {
-        return new Promise(async (resolve, reject) => {
-            if ((request.query.key || '').length !== 32) {
-                request._error = {
-                    code: 2,
-                    error: 'use a proxy key (32 hex characters)',
-                    proxy: true,
-                };
-                return reject();
-            }
-
-            const params = { ...request.query };
-            delete params.key;
-
-            const sql = 'select `iv`, `torn_key` from `users` inner join `keys` on `keys`.`user_id` = `users`.`id` where `key` = ? and `revoked_at` is null';
-            const [encryptedKey] = await database.query(sql, [request.query.key]);
-
-            if (encryptedKey === undefined) {
-                request._error = {
-                    code: 2,
-                    error: 'invalid proxy key',
-                    proxy: true,
-                };
-                return reject();
-            }
-
-            params.key = encryption.decrypt(encryptedKey.iv, encryptedKey.torn_key);
-            const paramsArray = Object.entries(params).map(([key, value]) => `${key}=${value}`);
-
-            resolve(request.url.split('?').shift() + '?' + paramsArray.join('&'));
-        });
-    },
-})).get('/', (request, response) => {
-    // this only executes if the proxy middleware rejects
+app.get('/tornstats/api.php', proxy('www.tornstats.com', proxyOptions), (request, response) => {
     response
-        .status(401)
+        .status(400) // tornstats.com uses 400 for invalid requests
         .json(request._error || {
-            code: 0,
-            error: 'undefined error',
+            error: 'ERROR: Undefined error.',
             proxy: true,
         });
 });
 
-app.listen(port, () => console.log(`TORN proxy server listening at http://localhost:${port}`));
+app.get('/*', proxy('api.torn.com', proxyOptions), (request, response) => {
+    response.json(request._error || {
+        code: 0,
+        error: 'Undefined error',
+        proxy: true,
+    });
+});
+
+app.listen(PORT, () => console.log(`TORN proxy server listening at http://localhost:${PORT}`));
