@@ -49,14 +49,10 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked, onKeyR
                 <td><span title={key.createdAt.toString()}>{key.createdAt.toLocaleDateString()}</span></td>
                 <td>
                     {key.revokedAt !== null && (
-                        <>
-                            <button className={styles.revokeButton} onClick={revoke} disabled={revoking}>revoke</button>
-                        </>
+                        <button className={styles.revokeButton} onClick={revoke} disabled={revoking}>revoke</button>
                     )}
                     {key.revokedAt === null && (
-                        <>
-                            <button className={styles.reinstateButton} onClick={reinstate} disabled={reinstating}>reinstate</button>
-                        </>
+                        <button className={styles.reinstateButton} onClick={reinstate} disabled={reinstating}>reinstate</button>
                     )}
                 </td>
             </tr>
