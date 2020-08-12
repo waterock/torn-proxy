@@ -15,6 +15,10 @@ tr.altRow {
   font-size: 0.9rem;
 }
 
+.revoked {
+  color: red;
+}
+
 .revokeButton {
   appearance: none;
   border: 1px solid indianred;
@@ -31,5 +35,24 @@ tr.altRow {
   &:hover {
     border-color: darkred;
     color: darkred;
+  }
+}
+
+.revokeButton {
+  appearance: none;
+  border: 1px solid #97ce50;
+  color: #97ce50;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.25rem;
+  display: inline-block;
+  text-decoration: none;
+  border-radius: 0.15rem;
+  background: #fffa;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+
+  &:hover {
+    border-color: #249209;
+    color: #249209;
   }
 }

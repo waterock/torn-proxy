@@ -21,7 +21,7 @@ const getKeysForUserId = async (userId) => {
     return await database.query([
         'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
         'from `keys`',
-        'where `user_id` = ? and `revoked_at` is null',
+        'where `user_id` = ?',
         'order by `created_at` asc',
     ].join(' '), [userId]);
 };
@@ -112,13 +112,29 @@ app.post('/api/keys', async (request, response) => {
     }
 });
 
-app.delete('/api/keys', async (request, response) => {
+app.update('/api/keys', async (request, response) => {
+    const action = request.query.action;
+
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
-            new Date(),
-            request.query.key || '',
-        ]);
+
+        switch (action) {
+            case 'revoke':
+                await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
+                    new Date(),
+                    request.query.key || '',
+                ]);
+                break;
+            case 'reinstate':
+                await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
+                    null,
+                    request.query.key || '',
+                ]);
+                break;
+            default:
+                // unknown command
+                break;
+        }
         const keys = await getKeysForUserId(userId);
         return response.json(keys);
     } catch (error) {

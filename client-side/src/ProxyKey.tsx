@@ -8,25 +8,39 @@ interface Props {
     keyEntity: Key
     useAltStyle: boolean
     onKeyRevoked(remainingKeys: Key[]): void
+    onKeyReinstated(remainingKeys: Key[]): void
 }
 
-const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked }) => {
+const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked, onKeyReinstated }) => {
     const app = useContext(AppContext);
     const conversion = useConversion();
 
     const [revoking, setRevoking] = useState<boolean>(false);
+    const [reinstating, setReinstating] = useState<boolean>(false);
 
     const revoke = async (event: React.MouseEvent) => {
         event.preventDefault();
 
         setRevoking(true);
-        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}`, {
-            method: 'delete',
+        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&action=revoke`, {
+            method: 'update',
             credentials: 'include'
         });
         const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);
         onKeyRevoked(keys);
     };
+
+    const reinstate = async (event: React.MouseEvent) => {
+        event.preventDefault();
+
+        setReinstating(true);
+        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&action=reinstate`, {
+            method: 'update',
+            credentials: 'include'
+        });
+        const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);
+        onKeyReinstated(keys);
+    }
 
     return (
         <>
@@ -34,12 +48,21 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked }) => {
                 <td>{key.description}</td>
                 <td><span title={key.createdAt.toString()}>{key.createdAt.toLocaleDateString()}</span></td>
                 <td>
-                    <button className={styles.revokeButton} onClick={revoke} disabled={revoking}>revoke</button>
+                    {key.revokedAt !== null && (
+                        <>
+                            <button className={styles.revokeButton} onClick={revoke} disabled={revoking}>revoke</button>
+                        </>
+                    )}
+                    {key.revokedAt === null && (
+                        <>
+                            <button className={styles.reinstateButton} onClick={reinstate} disabled={reinstating}>reinstate</button>
+                        </>
+                    )}
                 </td>
             </tr>
             <tr className={styles.keyRow + ' ' + (useAltStyle ? styles.altRow : '')}>
                 <td colSpan={3}>
-                    <span className={styles.key}>{key.key}</span>
+                    <span className={styles.key + ' ' + (key.revokedAt !== null ? styles.revoked : '')}>{key.key}</span>
                 </td>
             </tr>
         </>
