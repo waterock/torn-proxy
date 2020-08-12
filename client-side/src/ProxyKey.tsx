@@ -22,8 +22,8 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked, onKeyR
         event.preventDefault();
 
         setRevoking(true);
-        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&action=revoke`, {
-            method: 'update',
+        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&revoked_at=${new Date().toString}`, {
+            method: 'patch',
             credentials: 'include'
         });
         const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);
@@ -34,8 +34,8 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyRevoked, onKeyR
         event.preventDefault();
 
         setReinstating(true);
-        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&action=reinstate`, {
-            method: 'update',
+        const response = await fetch(`${app.serverBaseUrl}/api/keys?key=${key.key}&revoked_at=null`, {
+            method: 'patch',
             credentials: 'include'
         });
         const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);

@@ -112,29 +112,17 @@ app.post('/api/keys', async (request, response) => {
     }
 });
 
-app.update('/api/keys', async (request, response) => {
-    const action = request.query.action;
+app.patch('/api/keys', async (request, response) => {
+    const revokedAt = request.query.revoked_at;
 
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
 
-        switch (action) {
-            case 'revoke':
-                await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
-                    new Date(),
-                    request.query.key || '',
-                ]);
-                break;
-            case 'reinstate':
-                await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
-                    null,
-                    request.query.key || '',
-                ]);
-                break;
-            default:
-                // unknown command
-                break;
-        }
+        await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
+            revokedAt,
+            request.query.key || '',
+        ]);
+        
         const keys = await getKeysForUserId(userId);
         return response.json(keys);
     } catch (error) {
