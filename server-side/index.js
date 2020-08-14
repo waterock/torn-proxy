@@ -112,14 +112,17 @@ app.post('/api/keys', async (request, response) => {
     }
 });
 
-app.patch('/api/keys', async (request, response) => {
-    const revokedAt = request.query.revoked_at;
+app.put('/api/keys/:key', async (request, response) => {
+    const revokedAt = typeof request.body.revoked_at === 'string'
+        ? new Date(request.body.revoked_at)
+        : null;
 
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('update `keys` set `revoked_at` = ? where `key` = ?', [
+        await database.query('update `keys` set `revoked_at` = ? where `key` = ? and user_id = ?', [
             revokedAt,
-            request.query.key || '',
+            request.params.key,
+            userId,
         ]);
         const keys = await getKeysForUserId(userId);
         return response.json(keys);

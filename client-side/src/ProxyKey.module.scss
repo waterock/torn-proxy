@@ -10,13 +10,18 @@ tr.altRow {
   background: #eee;
 }
 
+tr.revoked .key {
+  text-decoration: line-through;
+  color: #aaa;
+}
+
+.revokedAt {
+  color: #aaa;
+}
+
 .key {
   color: #4682b4;
   font-size: 0.9rem;
-}
-
-.revoked {
-  color: red;
 }
 
 .revokeButton {
