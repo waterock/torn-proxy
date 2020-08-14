@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useMemo, useState } from 'react';
 import ProxyKey from './ProxyKey';
 import AppContext from './AppContext';
 import styles from './ProxyKeys.module.scss';
@@ -15,11 +15,12 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
 
     const [loading, setLoading] = useState(false);
     const [keys, setKeys] = useState<Key[]>([]);
+    const [showRevokedKeys, setShowRevokedKeys] = useState<boolean>(false);
     const [newKeyDescription, setNewKeyDescription] = useState<string>('');
     const [savingNewKey, setSavingNewKey] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    useEffect(() => {
+    useEffect(function loadKeys() {
         setLoading(true);
         (async () => {
             const response = await fetch(app.serverBaseUrl + '/api/keys', { credentials: 'include' });
@@ -35,12 +36,20 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
         })();
     }, []);
 
-    const lock = (event: React.MouseEvent) => {
+    const activeKeys = useMemo(() => {
+        return keys.filter((key) => key.revokedAt === null);
+    }, [keys]);
+
+    const revokedKeys = useMemo(() => {
+        return keys.filter((key) => key.revokedAt !== null);
+    }, [keys]);
+
+    function lock(event: React.MouseEvent) {
         event.preventDefault();
         onLock();
-    };
+    }
 
-    const createKey = async (event: React.FormEvent) => {
+    async function createKey(event: React.FormEvent) {
         event.preventDefault();
 
         setSavingNewKey(true);
@@ -55,7 +64,18 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
 
         setNewKeyDescription('');
         setSavingNewKey(false);
-    };
+    }
+
+    function renderKeys(keys: Key[]) {
+        return keys.map((key, i) => (
+            <ProxyKey
+                key={key.key}
+                keyEntity={key}
+                useAltStyle={i % 2 !== 0}
+                onKeyUpdated={setKeys}
+            />
+        ));
+    }
 
     if (errorMessage) {
         return <span>Error response from server: {errorMessage}. Please refresh the page.</span>;
@@ -77,15 +97,21 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
                 </tr>
                 </thead>
                 <tbody>
-                {keys.map((key, i) => (
-                    <ProxyKey
-                        key={key.key}
-                        keyEntity={key}
-                        useAltStyle={i % 2 !== 0}
-                        onKeyRevoked={setKeys}
-                    />
-                ))}
+                {renderKeys(activeKeys)}
                 </tbody>
+                {revokedKeys.length > 0 && (
+                    <tbody>
+                    <tr>
+                        <td colSpan={3}>
+                            <label>
+                                <input type="checkbox" checked={showRevokedKeys} onChange={(event) => setShowRevokedKeys(event.target.checked)}/>
+                                &nbsp;Show revoked keys ({revokedKeys.length})
+                            </label>
+                        </td>
+                    </tr>
+                    {showRevokedKeys && renderKeys(revokedKeys)}
+                    </tbody>
+                )}
             </table>
             <div>
                 <h3>New key</h3>
