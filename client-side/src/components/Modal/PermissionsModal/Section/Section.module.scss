@@ -1,0 +1,18 @@
+.root {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  padding: 0.5rem 0;
+}
+
+.sectionLabel {
+  margin-right: 1rem;
+  flex-basis: 7.5rem;
+}
+
+.sectionGrant {
+  flex: 1;
+}
+
+.nesting {
+  margin-left: 1rem;
+}

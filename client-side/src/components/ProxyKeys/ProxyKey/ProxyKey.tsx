@@ -4,6 +4,7 @@ import styles from './ProxyKey.module.scss';
 import AppContext from '../../AppContext/AppContext';
 import Button from '../../Button';
 import useConversion from '../../hooks/useConversion';
+import PermissionsModal from '../../Modal/PermissionsModal';
 
 interface Props {
     keyEntity: Key
@@ -16,6 +17,7 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
     const conversion = useConversion();
 
     const [saving, setSaving] = useState<boolean>(false);
+    const [showPermissionsModal, setShowPermissionsModal] = useState<boolean>(false);
 
     async function revoke(event: React.MouseEvent) {
         event.preventDefault();
@@ -46,7 +48,15 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
     }
 
     function renderPermissionsButton() {
-        return <Button type="action" appearance="default" onClick={() => {}}>permissions</Button>;
+        return (
+            <Button
+                type="action"
+                appearance="default"
+                onClick={() => setShowPermissionsModal(true)}
+            >
+                permissions
+            </Button>
+        );
     }
 
     const sharedRowStyles = [
@@ -82,6 +92,8 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
                     </td>
                 )}
             </tr>
+
+            {showPermissionsModal && <PermissionsModal keyEntity={key} onClose={() => setShowPermissionsModal(false)}/>}
         </>
     )
 };

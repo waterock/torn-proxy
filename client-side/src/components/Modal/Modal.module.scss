@@ -1,0 +1,48 @@
+.backdrop {
+  background: #0007;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+
+}
+
+.modal {
+  $vertical-margin: 2rem;
+  pointer-events: none;
+  width: 100vw;
+  height: calc(100vh - #{$vertical-margin * 2});
+  margin: $vertical-margin auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 2rem;
+  box-sizing: border-box;
+}
+
+.content {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 500px;
+  margin: auto;
+  background: #fff;
+  border-radius: 0.75rem;
+  min-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+
+  .header {
+    border-bottom: 1px solid #ddd;
+    padding: 1rem;
+  }
+
+  .body {
+    padding: 1rem;
+  }
+}
