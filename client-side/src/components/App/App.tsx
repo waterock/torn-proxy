@@ -4,7 +4,7 @@ import TornKeyForm from '../TornKeyForm';
 import ProxyKeys from '../ProxyKeys';
 import AppContext, { AppContextInterface } from '../AppContext';
 import Faq from '../Faq';
-import User from '../interfaces/User';
+import User from '../../interfaces/User';
 
 function App() {
     const [user, setUser] = useState<User | null>(null);

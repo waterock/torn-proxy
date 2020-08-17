@@ -1,9 +1,9 @@
 import React, { FC, useContext, useEffect, useMemo, useState } from 'react';
 import ProxyKey from './ProxyKey';
-import AppContext from '../AppContext';
+import AppContext from '../AppContext/AppContext';
 import styles from './ProxyKeys.module.scss';
-import Key from '../interfaces/Key';
-import useConversion from '../hooks/useConversion';
+import Key from '../../interfaces/Key';
+import useConversion from '../../hooks/useConversion';
 
 interface Props {
     onLock(): void
