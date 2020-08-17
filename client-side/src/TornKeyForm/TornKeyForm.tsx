@@ -1,7 +1,7 @@
 import React, { FC, FormEvent, useContext, useState } from 'react';
 import styles from './TornKeyForm.module.scss';
-import AppContext from './AppContext';
-import User from './interfaces/User';
+import AppContext from '../AppContext';
+import User from '../interfaces/User';
 
 interface Props {
     onAuthenticated(user: User): void,

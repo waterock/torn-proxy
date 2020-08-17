@@ -1,9 +1,9 @@
 import React, { FC, useContext, useState } from 'react';
-import Key from './interfaces/Key';
+import Key from '../../interfaces/Key';
 import styles from './ProxyKey.module.scss';
-import AppContext from './AppContext';
-import Button from './Button';
-import useConversion from './hooks/useConversion';
+import AppContext from '../../AppContext';
+import Button from '../../Button';
+import useConversion from '../../hooks/useConversion';
 
 interface Props {
     keyEntity: Key

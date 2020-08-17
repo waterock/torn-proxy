@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import styles from './App.module.scss';
-import TornKeyForm from './TornKeyForm';
-import ProxyKeys from './ProxyKeys';
-import AppContext, { AppContextInterface } from './AppContext';
-import Faq from './Faq';
-import User from './interfaces/User';
+import TornKeyForm from '../TornKeyForm';
+import ProxyKeys from '../ProxyKeys';
+import AppContext, { AppContextInterface } from '../AppContext';
+import Faq from '../Faq';
+import User from '../interfaces/User';
 
 function App() {
     const [user, setUser] = useState<User | null>(null);
@@ -33,7 +33,7 @@ function App() {
     return (
         <AppContext.Provider value={appContextValue}>
             <div className={styles.root}>
-                <h1>TORN proxy</h1>
+                {/*<h1>TORN proxy</h1>*/}
                 <p>The only place that needs to know your TORN API key.</p>
                 <p>Apps can use dedicated proxy keys to make requests to the TORN API.</p>
                 <p>Easy app-based access control for added privacy and security.</p>
