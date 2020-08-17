@@ -2,6 +2,7 @@ import React, { FC, useContext, useState } from 'react';
 import Key from './interfaces/Key';
 import styles from './ProxyKey.module.scss';
 import AppContext from './AppContext';
+import Button from './Button';
 import useConversion from './hooks/useConversion';
 
 interface Props {
@@ -44,6 +45,10 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
         return (await response.json()).map(conversion.convertKeyRecordToEntity);
     }
 
+    function renderPermissionsButton() {
+        return <Button type="action" appearance="default" onClick={() => {}}>permissions</Button>;
+    }
+
     const sharedRowStyles = [
         useAltStyle ? styles.altRow : '',
         key.revokedAt ? styles.revoked : '',
@@ -56,7 +61,10 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
                 <td><span title={key.createdAt.toString()}>{key.createdAt.toLocaleDateString()}</span></td>
                 <td>
                     {key.revokedAt === null && (
-                        <button className={styles.revokeButton} onClick={revoke} disabled={saving}>revoke</button>
+                        <>
+                            <Button type="action" appearance="danger" onClick={revoke} disabled={saving}>revoke</Button>
+                            {renderPermissionsButton()}
+                        </>
                     )}
                     {key.revokedAt !== null && (
                         <span title={key.revokedAt.toString()} className={styles.revokedAt}>revoked at {key.revokedAt.toLocaleDateString()}</span>
@@ -69,7 +77,8 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
                 </td>
                 {key.revokedAt !== null && (
                     <td>
-                        <button className={styles.reinstateButton} onClick={reinstate} disabled={saving}>reinstate</button>
+                        <Button type="action" appearance="default" onClick={reinstate} disabled={saving}>reinstate</Button>
+                        {renderPermissionsButton()}
                     </td>
                 )}
             </tr>

@@ -1,0 +1,33 @@
+.root {
+  &.type-action {
+    appearance: none;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.25rem;
+    display: inline-block;
+    text-decoration: none;
+    border-radius: 0.15rem;
+    background: #fffa;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+
+    &.appearance-default {
+      border: 1px solid #97ce50;
+      color: #97ce50;
+
+      &:hover {
+        border-color: #249209;
+        color: #249209;
+      }
+    }
+
+    &.appearance-danger {
+      border: 1px solid indianred;
+      color: indianred;
+
+      &:hover {
+        border-color: darkred;
+        color: darkred;
+      }
+    }
+  }
+}
