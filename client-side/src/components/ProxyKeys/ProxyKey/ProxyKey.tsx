@@ -3,7 +3,7 @@ import Key from '../../../interfaces/Key';
 import styles from './ProxyKey.module.scss';
 import AppContext from '../../AppContext/AppContext';
 import Button from '../../Button';
-import useConversion from '../../../hooks/useConversion';
+import useConversion from '../../hooks/useConversion';
 
 interface Props {
     keyEntity: Key

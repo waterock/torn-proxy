@@ -1,5 +1,5 @@
-import Key from '../interfaces/Key';
-import KeyRecord from '../interfaces/KeyRecord';
+import Key from '../../interfaces/Key';
+import KeyRecord from '../../interfaces/KeyRecord';
 
 export default () => {
     return {
