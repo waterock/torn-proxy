@@ -13,7 +13,11 @@ Supporting proxy keys on your website/app is incredibly easy.
 - The response is exactly what you'd get from torn.com's API. The proxy is just a simple pass-through.
 
 ## Error codes
-- The proxy server returns error code 2 ("Incorrect key") if the supplied key is not a valid proxy key. In addition to torn's native `code` and `error` keys, there's also `proxy: true` to indicate that it's a proxy error and not a native torn error.    
+- The proxy server returns error code 2 ("Incorrect key") if the supplied key is not a valid proxy key. In addition to torn's native `code` and `error` keys, there's also `proxy: true` to indicate that it's a proxy error and not a native torn error.
+- You can distinguish revoked keys from plain invalid keys by means of the `proxy_code` (and `proxy_error`) props:
+  - `proxy_code: 1` with (`proxy_error: "Key not found"`) is for invalid (non-existing) keys.
+  - `proxy_code: 2` with (`proxy_error: "Key revoked"`) is for revoked keys.
+  - Take care to check the code (not the error message) because the message may change in the future. 
 
 ## Benefits for your users
 Since Ched doesn't care much for account privacy when it comes to the API, I thought it best to take matters into my own hands. By supporting proxy keys on your website/app, your users can:
