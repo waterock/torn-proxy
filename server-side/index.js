@@ -36,18 +36,23 @@ function getCookieOptions() {
     };
 }
 
+// returns tuple [decrypted_torn_key: string | null, revoked: bool]
 async function getTornKey(proxyKey) {
-    const [encryptedKey] = await database.query([
-        'select `iv`, `torn_key`',
+    const [record] = await database.query([
+        'select `iv`, `torn_key`, `revoked_at`',
         'from `users`',
         'inner join `keys` on `keys`.`user_id` = `users`.`id`',
-        'where `key` = ? and `revoked_at` is null',
+        'where `key` = ?',
     ].join(' '), [proxyKey]);
 
-    if (encryptedKey === undefined) {
-        return null;
+    if (record === undefined) {
+        return [null, false];
     }
-    return encryption.decrypt(encryptedKey.iv, encryptedKey.torn_key);
+
+    return [
+        encryption.decrypt(record.iv, record.torn_key),
+        record.revoked_at !== null,
+    ];
 }
 
 function getParamsArray(request, tornKey) {
@@ -55,21 +60,29 @@ function getParamsArray(request, tornKey) {
         .map(([key, value]) => `${key}=${value}`);
 }
 
+function getProxyError(keyRevoked = false) {
+    return {
+        proxy: true,
+        proxy_code: keyRevoked ? 2 : 1,
+        proxy_error: keyRevoked ? 'Key revoked' : 'Key not found',
+    };
+}
+
 function resolvePathForTornStats(request) {
     return new Promise(async (resolve, reject) => {
         if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
             request._error = {
                 error: 'ERROR: User not found.',
-                proxy: true,
+                ...getProxyError(),
             };
             return reject();
         }
 
-        const tornKey = await getTornKey(request.query.key);
-        if (!tornKey) {
+        const [tornKey, revoked] = await getTornKey(request.query.key);
+        if (tornKey === null || revoked) {
             request._error = {
                 error: 'ERROR: User not found.',
-                proxy: true,
+                ...getProxyError(revoked),
             };
             return reject();
         }
@@ -84,17 +97,17 @@ function resolvePathForTorn(request) {
             request._error = {
                 code: 2,
                 error: 'Incorrect Key',
-                proxy: true,
+                ...getProxyError(),
             };
             return reject();
         }
 
-        const tornKey = await getTornKey(request.query.key);
-        if (!tornKey) {
+        const [tornKey, revoked] = await getTornKey(request.query.key);
+        if (tornKey === null || revoked) {
             request._error = {
                 code: 2,
                 error: 'Incorrect Key',
-                proxy: true,
+                ...getProxyError(revoked),
             };
             return reject();
         }
