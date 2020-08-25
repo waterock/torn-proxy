@@ -21,7 +21,7 @@ const PROXY_KEY_LENGTH = 32;
 
 async function getKeysForUserId(userId) {
     return await database.query([
-        'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
+        'select `key`, `user_id`, `description`, `permissions`, `created_at`, `revoked_at`',
         'from `keys`',
         'where `user_id` = ?',
         'order by `created_at` asc',
@@ -180,34 +180,53 @@ app.get('/api/keys', async (request, response) => {
 });
 
 app.post('/api/keys', async (request, response) => {
+    const randomKey = crypto.randomBytes(16).toString('hex');
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
         await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
-            crypto.randomBytes(16).toString('hex'),
+            randomKey,
             userId,
             request.body.description.trim().substr(0, 255),
         ]);
         const keys = await getKeysForUserId(userId);
-        return response.json(keys);
+
+        // todo prettify
+        const onlyThisKey = keys.find(({ key }) => key === randomKey);
+        return response.json(onlyThisKey);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
     }
 });
 
 app.put('/api/keys/:key', async (request, response) => {
-    const revokedAt = typeof request.body.revoked_at === 'string'
-        ? new Date(request.body.revoked_at)
-        : null;
+    const updates = [];
+    if (request.body.revoked_at !== undefined) {
+        updates.push({
+            sql: '`revoked_at` = ?',
+            value: typeof request.body.revoked_at === 'string' ? new Date(request.body.revoked_at) : null,
+        });
+    }
+
+    if (request.body.permissions !== undefined) {
+        updates.push({
+            sql: '`permissions` = ?',
+            value: JSON.stringify(request.body.permissions),
+        });
+    }
 
     try {
+        const sql = 'update `keys` set ' + updates.map(({ sql }) => sql).join(' ') + ' where `key` = ? and `user_id` = ?';
         const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('update `keys` set `revoked_at` = ? where `key` = ? and user_id = ?', [
-            revokedAt,
+        await database.query(sql, [
+            ...updates.map(({ value }) => value),
             request.params.key,
             userId,
         ]);
         const keys = await getKeysForUserId(userId);
-        return response.json(keys);
+
+        // todo prettify
+        const onlyThisKey = keys.find(({ key }) => key === request.params.key);
+        return response.json(onlyThisKey);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
     }

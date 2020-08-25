@@ -16,12 +16,12 @@ services:
   mysql:
     image: mysql:8.0
     ports:
-      - 33065:3306
+      - 33070:3306
     volumes:
-      - torn-proxy-mysql-data:/var/lib/mysql:delegated
+      - torn-proxy-mysql-data3:/var/lib/mysql:delegated
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: torn-proxy
 
 volumes:
-  torn-proxy-mysql-data:
+  torn-proxy-mysql-data3:
