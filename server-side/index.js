@@ -4,9 +4,11 @@ const express = require('express');
 const cookieParser = require('cookie-parser')
 const proxy = require('express-http-proxy');
 const app = express();
+const cors = require('cors');
 if (process.env.NODE_ENV === 'development') {
-    const cors = require('cors');
     app.use(cors({ origin: true, credentials: true }));
+} else {
+    app.use(cors({ origin: /^https:\/\/(www\.)?torn-proxy\.com$/, credentials: true }));
 }
 app.use(express.json());
 app.use(cookieParser());
