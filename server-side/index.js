@@ -21,9 +21,9 @@ const jwt = require('./jwt');
 const PORT = 3001;
 const PROXY_KEY_LENGTH = 32;
 
-async function getKeysForUserId(userId) {
+async function getAllKeys(userId) {
     return await database.query([
-        'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
+        'select `key`, `user_id`, `description`, `permissions`, `created_at`, `revoked_at`',
         'from `keys`',
         'where `user_id` = ?',
         'order by `created_at` asc',
@@ -187,7 +187,7 @@ app.post('/api/lock', (request, response) => {
 app.get('/api/keys', async (request, response) => {
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        const keys = await getKeysForUserId(userId);
+        const keys = await getAllKeys(userId);
         return response.json(keys);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
@@ -197,12 +197,13 @@ app.get('/api/keys', async (request, response) => {
 app.post('/api/keys', async (request, response) => {
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
+        await database.query('insert into `keys` (`key`, `user_id`, `description`, `permissions`) values (?, ?, ?, ?)', [
             crypto.randomBytes(16).toString('hex'),
             userId,
             request.body.description.trim().substr(0, 255),
+            '*',
         ]);
-        const keys = await getKeysForUserId(userId);
+        const keys = await getAllKeys(userId);
         return response.json(keys);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
@@ -210,22 +211,37 @@ app.post('/api/keys', async (request, response) => {
 });
 
 app.put('/api/keys/:key', async (request, response) => {
-    const revokedAt = typeof request.body.revoked_at === 'string'
-        ? new Date(request.body.revoked_at)
-        : null;
-
+    let userId;
     try {
-        const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('update `keys` set `revoked_at` = ? where `key` = ? and user_id = ?', [
-            revokedAt,
-            request.params.key,
-            userId,
-        ]);
-        const keys = await getKeysForUserId(userId);
-        return response.json(keys);
+        userId = await jwt.getUserId(request.cookies.jwt);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
     }
+
+    const updates = {};
+    if (request.body.revoked_at !== undefined) {
+        updates.revoked_at = typeof request.body.revoked_at === 'string'
+            ? new Date(request.body.revoked_at)
+            : null;
+    }
+    if (['*', 'public'].includes(request.body.permissions)) {
+        updates.permissions = request.body.permissions;
+    }
+
+    const updateQuery = [
+        'update `keys` set',
+        Object.keys(updates).map(field => `${field} = ?`).join(', '),
+        'where `key` = ? and `user_id` = ?'
+    ].join(' ');
+
+    await database.query(updateQuery, [
+        ...Object.values(updates),
+        request.params.key,
+        userId,
+    ]);
+    const keys = await getAllKeys(userId);
+
+    response.json(keys);
 });
 
 app.get('/tornstats/api.php', proxy('www.tornstats.com', proxyOptions), (request, response) => {
