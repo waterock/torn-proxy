@@ -17,6 +17,7 @@ const database = require('./database');
 const fetch = require('node-fetch');
 const jsonwebtoken = require('jsonwebtoken');
 const jwt = require('./jwt');
+const publicSelections = require('./publicSelections');
 
 const PORT = 3001;
 const PROXY_KEY_LENGTH = 32;
@@ -57,9 +58,33 @@ async function getTornKey(proxyKey) {
     ];
 }
 
-function getParamsArray(request, tornKey) {
-    return Object.entries({ ...request.query, key: tornKey })
-        .map(([key, value]) => `${key}=${value}`);
+async function getKey(proxyKey) {
+    if (typeof proxyKey !== 'string' || proxyKey.length !== PROXY_KEY_LENGTH) {
+        return null;
+    }
+
+    const [record] = await database.query([
+        'select `permissions`, `revoked_at`, `iv`, `torn_key` as `encrypted_torn_key`',
+        'from `users` inner join `keys` on `keys`.`user_id` = `users`.`id`',
+        'where `key` = ?',
+    ].join(' '), [proxyKey]);
+
+    if (record === undefined) {
+        return null;
+    }
+
+    return {
+        torn_key: encryption.decrypt(record.iv, record.encrypted_torn_key),
+        permissions: record.permissions,
+        is_revoked: record.revoked_at !== null,
+    };
+}
+
+function getParamsArray(request) {
+    return Object.entries({
+        ...request.query,
+        key: request.locals.key.torn_key,
+    }).map(([key, value]) => `${key}=${value}`);
 }
 
 function getProxyError(keyRevoked = false) {
@@ -70,64 +95,17 @@ function getProxyError(keyRevoked = false) {
     };
 }
 
-function resolvePathForTornStats(request) {
-    return new Promise(async (resolve, reject) => {
-        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
-            request._error = {
-                error: 'ERROR: User not found.',
-                ...getProxyError(),
-            };
-            return reject();
-        }
-
-        const [tornKey, revoked] = await getTornKey(request.query.key);
-        if (tornKey === null || revoked) {
-            request._error = {
-                error: 'ERROR: User not found.',
-                ...getProxyError(revoked),
-            };
-            return reject();
-        }
-
-        resolve('/api.php?' + getParamsArray(request, tornKey).join('&'));
-    });
-}
-
-function resolvePathForTorn(request) {
-    return new Promise(async (resolve, reject) => {
-        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
-            request._error = {
-                code: 2,
-                error: 'Incorrect Key',
-                ...getProxyError(),
-            };
-            return reject();
-        }
-
-        const [tornKey, revoked] = await getTornKey(request.query.key);
-        if (tornKey === null || revoked) {
-            request._error = {
-                code: 2,
-                error: 'Incorrect Key',
-                ...getProxyError(revoked),
-            };
-            return reject();
-        }
-
-        const endpoint = request.url.split('?').shift();
-        const params = getParamsArray(request, tornKey);
-
-        resolve(`${endpoint}?${params.join('&')}`);
-    });
+function isTornStatsApiRequest(request) {
+    return request.url.startsWith('/tornstats/api.php');
 }
 
 const proxyOptions = {
     https: true,
     proxyReqPathResolver(request) {
-        if (request.url.startsWith('/tornstats/api.php')) {
-            return resolvePathForTornStats(request);
+        if (isTornStatsApiRequest(request)) {
+            return '/api.php?' + getParamsArray(request).join('&');
         }
-        return resolvePathForTorn(request);
+        return `/${getTornResource(request)}?${getParamsArray(request).join('&')}`;
     },
 };
 
@@ -244,7 +222,71 @@ app.put('/api/keys/:key', async (request, response) => {
     response.json(keys);
 });
 
-app.get('/tornstats/api.php', proxy('www.tornstats.com', proxyOptions), (request, response) => {
+async function validateKey(request, response, next) {
+    const key = await getKey(request.query.key);
+    if (key === null || key.is_revoked) {
+        if (isTornStatsApiRequest(request)) {
+            return response.json({
+                error: 'ERROR: User not found.',
+                ...getProxyError(key && key.is_revoked),
+            });
+        }
+        return response.json({
+            code: 2,
+            error: 'Incorrect Key',
+            ...getProxyError(key && key.is_revoked),
+        });
+    }
+
+    request.locals = request.locals || {};
+    request.locals.key = key;
+
+    next();
+}
+
+function checkPermissions(request, response, next) {
+    function errorCodeThree() {
+        return response.json({
+            code: 7,
+            error: 'Incorrect ID-entity relation',
+            proxy: true,
+            proxy_code: 3,
+            proxy_error: 'Key permissions are insufficient for at least one requested selection',
+        });
+    }
+
+    if (isTornStatsApiRequest(request)) {
+        // Permissions are not (yet?) implemented for tornstats.com
+        return next();
+    }
+
+    if (request.locals.key.permissions === '*') {
+        return next();
+    }
+
+    const resource = getTornResource(request);
+    if (publicSelections[resource] === undefined) {
+        return errorCodeThree();
+    }
+
+    const requestedSelections = typeof request.query.selections === 'string'
+        ? request.query.selections.split(',')
+        : [''];
+
+    // todo ensure permissions equals "public" before assuming this is the right check
+    const nonPublicSelections = requestedSelections.filter(selection => !publicSelections[resource].includes(selection));
+    if (nonPublicSelections.length > 0) {
+        return errorCodeThree();
+    }
+
+    next();
+}
+
+function getTornResource(request) {
+    return request.path.substr(1).split('/')[0];
+}
+
+app.get('/tornstats/api.php', validateKey, checkPermissions, proxy('www.tornstats.com', proxyOptions), (request, response) => {
     response
         .status(400) // tornstats.com uses 400 for invalid requests
         .json(request._error || {
@@ -253,7 +295,8 @@ app.get('/tornstats/api.php', proxy('www.tornstats.com', proxyOptions), (request
         });
 });
 
-app.get('/*', proxy('api.torn.com', proxyOptions), (request, response) => {
+// Make sure this route comes last as a catch-all
+app.get('/*', validateKey, checkPermissions, proxy('api.torn.com', proxyOptions), (request, response) => {
     response.json(request._error || {
         code: 0,
         error: 'Undefined error',
