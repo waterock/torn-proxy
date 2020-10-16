@@ -174,7 +174,7 @@ app.get(
         proxy_error: 'Key revoked',
     }),
     getTornstatsRequestPath,
-    proxy('www.tornstats.com', { proxyReqPathResolver: req => req.locals.proxyPath }),
+    proxy('www.tornstats.com', { https: true, proxyReqPathResolver: req => req.locals.proxyPath }),
     (req, res) => res.json({
         error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
         proxy: true,
@@ -210,7 +210,7 @@ app.get( // Make sure this route comes last as a catch-all for torn routes
         proxy_error: 'Key forbids access to {subject}: {details}',
     }),
     getTornRequestPath,
-    proxy('api.torn.com', { proxyReqPathResolver: req => req.locals.proxyPath }),
+    proxy('api.torn.com', { https: true, proxyReqPathResolver: req => req.locals.proxyPath }),
     (req, res) => res.json({
         code: 0,
         error: 'Unknown error',
