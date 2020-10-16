@@ -175,10 +175,12 @@ app.get(
     }),
     getTornstatsRequestPath,
     proxy('www.tornstats.com', { proxyReqPathResolver: req => req.locals.proxyPath }),
-    (req,res) => {
-        console.log(req.locals);
-        res.send('ok');
-    }
+    (req, res) => res.json({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
+        proxy: true,
+        proxy_code: 0,
+        proxy_error: 'Failed to proxy the request to tornstats.com',
+    }),
 );
 
 app.get( // Make sure this route comes last as a catch-all for torn routes
@@ -214,7 +216,7 @@ app.get( // Make sure this route comes last as a catch-all for torn routes
         error: 'Unknown error',
         proxy: true,
         proxy_code: 0,
-        proxy_error: 'Failed to proxy request to/from torn.com',
+        proxy_error: 'Failed to proxy the request to torn.com',
     }),
 );
 
