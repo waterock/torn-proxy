@@ -23,7 +23,8 @@ const errorIfKeyRevoked = require('./middlewares/errorIfKeyRevoked');
 const errorIfNoPermission = require('./middlewares/errorIfNoPermission');
 const getRequestedResource = require('./middlewares/getRequestedResource');
 const getRequestedSelections = require('./middlewares/getRequestedSelections');
-const getProxyPathForTornRequest = require('./middlewares/getProxyPathForTornRequest');
+const getTornRequestPath = require('./middlewares/getTornRequestPath');
+const getTornstatsRequestPath = require('./middlewares/getTornstatsRequestPath');
 
 const PORT = 3001;
 
@@ -43,35 +44,6 @@ function getCookieOptions() {
         sameSite: true,
     };
 }
-
-// returns tuple [decrypted_torn_key: string | null, revoked: bool]
-async function getTornKey(proxyKey) {
-    const [record] = await database.query([
-        'select `iv`, `torn_key`, `revoked_at`',
-        'from `users`',
-        'inner join `keys` on `keys`.`user_id` = `users`.`id`',
-        'where `key` = ?',
-    ].join(' '), [proxyKey]);
-
-    if (record === undefined) {
-        return [null, false];
-    }
-
-    return [
-        encryption.decrypt(record.iv, record.torn_key),
-        record.revoked_at !== null,
-    ];
-}
-
-const proxyOptions = {
-    https: true,
-    proxyReqPathResolver(req) {
-        // if (isTornStatsApiRequest(request)) {
-        //     return '/api.php?' + getParamsArray(request).join('&');
-        // }
-        return req.locals.proxyPath;
-    },
-};
 
 app.post('/api/authenticate', async (request, response) => {
     const result = await fetch('https://api.torn.com/user/?selections=basic&key=' + request.body.key);
@@ -186,17 +158,30 @@ app.put('/api/keys/:key', async (request, response) => {
     response.json(keys);
 });
 
-// app.get('/tornstats/api.php', validateKey, checkPermissions, proxy('www.tornstats.com', proxyOptions), (request, response) => {
-//     response
-//         .status(400) // tornstats.com uses 400 for invalid requests
-//         .json(request._error || {
-//             error: 'ERROR: Undefined error.',
-//             proxy: true,
-//         });
-// });
-
-// Make sure this route comes last as a catch-all
 app.get(
+    '/tornstats/api.php',
+    getKey,
+    errorIfKeyNotFound({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
+        proxy: true,
+        proxy_code: 1,
+        proxy_error: 'Key not found',
+    }),
+    errorIfKeyRevoked({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
+        proxy: true,
+        proxy_code: 2,
+        proxy_error: 'Key revoked',
+    }),
+    getTornstatsRequestPath,
+    proxy('www.tornstats.com', { proxyReqPathResolver: req => req.locals.proxyPath }),
+    (req,res) => {
+        console.log(req.locals);
+        res.send('ok');
+    }
+);
+
+app.get( // Make sure this route comes last as a catch-all for torn routes
     '/*',
     getKey,
     errorIfKeyNotFound({
@@ -222,8 +207,8 @@ app.get(
         proxy_code: 3,
         proxy_error: 'Key forbids access to {subject}: {details}',
     }),
-    getProxyPathForTornRequest,
-    proxy('api.torn.com', proxyOptions),
+    getTornRequestPath,
+    proxy('api.torn.com', { proxyReqPathResolver: req => req.locals.proxyPath }),
     (req, res) => res.json({
         code: 0,
         error: 'Unknown error',
