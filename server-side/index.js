@@ -17,10 +17,15 @@ const database = require('./database');
 const fetch = require('node-fetch');
 const jsonwebtoken = require('jsonwebtoken');
 const jwt = require('./jwt');
-const publicSelections = require('./publicSelections');
+const getKey = require('./middlewares/getKey');
+const errorIfKeyNotFound = require('./middlewares/errorIfKeyNotFound');
+const errorIfKeyRevoked = require('./middlewares/errorIfKeyRevoked');
+const errorIfNoPermission = require('./middlewares/errorIfNoPermission');
+const getRequestedResource = require('./middlewares/getRequestedResource');
+const getRequestedSelections = require('./middlewares/getRequestedSelections');
+const getProxyPathForTornRequest = require('./middlewares/getProxyPathForTornRequest');
 
 const PORT = 3001;
-const PROXY_KEY_LENGTH = 32;
 
 async function getAllKeys(userId) {
     return await database.query([
@@ -58,54 +63,13 @@ async function getTornKey(proxyKey) {
     ];
 }
 
-async function getKey(proxyKey) {
-    if (typeof proxyKey !== 'string' || proxyKey.length !== PROXY_KEY_LENGTH) {
-        return null;
-    }
-
-    const [record] = await database.query([
-        'select `permissions`, `revoked_at`, `iv`, `torn_key` as `encrypted_torn_key`',
-        'from `users` inner join `keys` on `keys`.`user_id` = `users`.`id`',
-        'where `key` = ?',
-    ].join(' '), [proxyKey]);
-
-    if (record === undefined) {
-        return null;
-    }
-
-    return {
-        torn_key: encryption.decrypt(record.iv, record.encrypted_torn_key),
-        permissions: record.permissions,
-        is_revoked: record.revoked_at !== null,
-    };
-}
-
-function getParamsArray(request) {
-    return Object.entries({
-        ...request.query,
-        key: request.locals.key.torn_key,
-    }).map(([key, value]) => `${key}=${value}`);
-}
-
-function getProxyError(keyRevoked = false) {
-    return {
-        proxy: true,
-        proxy_code: keyRevoked ? 2 : 1,
-        proxy_error: keyRevoked ? 'Key revoked' : 'Key not found',
-    };
-}
-
-function isTornStatsApiRequest(request) {
-    return request.url.startsWith('/tornstats/api.php');
-}
-
 const proxyOptions = {
     https: true,
-    proxyReqPathResolver(request) {
-        if (isTornStatsApiRequest(request)) {
-            return '/api.php?' + getParamsArray(request).join('&');
-        }
-        return `/${getTornResource(request)}?${getParamsArray(request).join('&')}`;
+    proxyReqPathResolver(req) {
+        // if (isTornStatsApiRequest(request)) {
+        //     return '/api.php?' + getParamsArray(request).join('&');
+        // }
+        return req.locals.proxyPath;
     },
 };
 
@@ -222,86 +186,51 @@ app.put('/api/keys/:key', async (request, response) => {
     response.json(keys);
 });
 
-async function validateKey(request, response, next) {
-    const key = await getKey(request.query.key);
-    if (key === null || key.is_revoked) {
-        if (isTornStatsApiRequest(request)) {
-            return response.json({
-                error: 'ERROR: User not found.',
-                ...getProxyError(key && key.is_revoked),
-            });
-        }
-        return response.json({
-            code: 2,
-            error: 'Incorrect Key',
-            ...getProxyError(key && key.is_revoked),
-        });
-    }
-
-    request.locals = request.locals || {};
-    request.locals.key = key;
-
-    next();
-}
-
-function checkPermissions(request, response, next) {
-    function errorCodeThree() {
-        return response.json({
-            code: 7,
-            error: 'Incorrect ID-entity relation',
-            proxy: true,
-            proxy_code: 3,
-            proxy_error: 'Key permissions are insufficient for at least one requested selection',
-        });
-    }
-
-    if (isTornStatsApiRequest(request)) {
-        // Permissions are not (yet?) implemented for tornstats.com
-        return next();
-    }
-
-    if (request.locals.key.permissions === '*') {
-        return next();
-    }
-
-    const resource = getTornResource(request);
-    if (publicSelections[resource] === undefined) {
-        return errorCodeThree();
-    }
-
-    const requestedSelections = typeof request.query.selections === 'string'
-        ? request.query.selections.split(',')
-        : [''];
-
-    // todo ensure permissions equals "public" before assuming this is the right check
-    const nonPublicSelections = requestedSelections.filter(selection => !publicSelections[resource].includes(selection));
-    if (nonPublicSelections.length > 0) {
-        return errorCodeThree();
-    }
-
-    next();
-}
-
-function getTornResource(request) {
-    return request.path.substr(1).split('/')[0];
-}
-
-app.get('/tornstats/api.php', validateKey, checkPermissions, proxy('www.tornstats.com', proxyOptions), (request, response) => {
-    response
-        .status(400) // tornstats.com uses 400 for invalid requests
-        .json(request._error || {
-            error: 'ERROR: Undefined error.',
-            proxy: true,
-        });
-});
+// app.get('/tornstats/api.php', validateKey, checkPermissions, proxy('www.tornstats.com', proxyOptions), (request, response) => {
+//     response
+//         .status(400) // tornstats.com uses 400 for invalid requests
+//         .json(request._error || {
+//             error: 'ERROR: Undefined error.',
+//             proxy: true,
+//         });
+// });
 
 // Make sure this route comes last as a catch-all
-app.get('/*', validateKey, checkPermissions, proxy('api.torn.com', proxyOptions), (request, response) => {
-    response.json(request._error || {
-        code: 0,
-        error: 'Undefined error',
+app.get(
+    '/*',
+    getKey,
+    errorIfKeyNotFound({
+        code: 2,
+        error: 'Incorrect Key',
         proxy: true,
-    });
-});
+        proxy_code: 1,
+        proxy_error: 'Key not found',
+    }),
+    errorIfKeyRevoked({
+        code: 2,
+        error: 'Incorrect Key',
+        proxy: true,
+        proxy_code: 2,
+        proxy_error: 'Key revoked',
+    }),
+    getRequestedResource,
+    getRequestedSelections,
+    errorIfNoPermission({
+        code: 7,
+        error: 'Incorrect ID-entity relation',
+        proxy: true,
+        proxy_code: 3,
+        proxy_error: 'Key forbids access to {subject}: {details}',
+    }),
+    getProxyPathForTornRequest,
+    proxy('api.torn.com', proxyOptions),
+    (req, res) => res.json({
+        code: 0,
+        error: 'Unknown error',
+        proxy: true,
+        proxy_code: 0,
+        proxy_error: 'Failed to proxy request to/from torn.com',
+    }),
+);
 
 app.listen(PORT, () => console.log(`TORN proxy server listening at http://localhost:${PORT}`));
