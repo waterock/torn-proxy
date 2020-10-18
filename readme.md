@@ -13,11 +13,22 @@ Supporting proxy keys on your website/app is incredibly easy.
 - The response is exactly what you'd get from torn.com's API. The proxy is just a simple pass-through.
 
 ## Error codes
-- The proxy server returns error code 2 ("Incorrect key") if the supplied key is not a valid proxy key. In addition to torn's native `code` and `error` keys, there's also `proxy: true` to indicate that it's a proxy error and not a native torn error.
-- You can distinguish revoked keys from plain invalid keys by means of the `proxy_code` (and `proxy_error`) props:
-  - `proxy_code: 1` with (`proxy_error: "Key not found"`) is for invalid (non-existing) keys.
-  - `proxy_code: 2` with (`proxy_error: "Key revoked"`) is for revoked keys.
-  - Take care to check the code (not the error message) because the message may change in the future. 
+The proxy returns the best matching native TORN error code + message (`code` and `error`). This lets consumers rely on existing error handling to make it easier to support the proxy.
+
+Three keys are appended if (and only if) the proxy detected the error _before_ the request was forwarded to TORN: `proxy`, `proxy_code` and `proxy_error`.
+
+These are all the possible errors:
+  
+| code | error | proxy | proxy_code | proxy_error |
+| --- | --- | --- | --- | --- |
+| 0 | Unknown error | true | 0 | Failed to proxy the request to torn.com |
+| 2 | Incorrect Key | true | 1 | Key not found |
+| 2 |  Incorrect Key | true | 2 | Key revoked |
+| 7 | Incorrect ID-entity relation | true | 3 | Key forbids access to {subject}: {details} |
+
+### Error codes for tornstats.com
+Requests to `/tornstats/api.php...` have no `code` in their error response, and the message (in `error`) always starts with "ERROR:".
+The same 3 proxy keys are appended, with the `proxy_code` being either 0, 1, or 2.
 
 ## Benefits for your users
 Since Ched doesn't care much for account privacy when it comes to the API, I thought it best to take matters into my own hands. By supporting proxy keys on your website/app, your users can:
@@ -29,4 +40,4 @@ Since Ched doesn't care much for account privacy when it comes to the API, I tho
 TORN keys are stored encrypted with a secret and an iv in mysql. Proxy keys, which are easily replaced, are stored plain-text. This ensures a fast service with minimal added latency.  
 
 ## Questions
-Either use Discord (https://discord.gg/cqpTKA) or contact Sulsay [2173590] directly.
+See [forum thread](https://www.torn.com/forums.php#/p=threads&f=63&t=16178384).
