@@ -17,13 +17,20 @@ const database = require('./database');
 const fetch = require('node-fetch');
 const jsonwebtoken = require('jsonwebtoken');
 const jwt = require('./jwt');
+const getKey = require('./middlewares/getKey');
+const errorIfKeyNotFound = require('./middlewares/errorIfKeyNotFound');
+const errorIfKeyRevoked = require('./middlewares/errorIfKeyRevoked');
+const errorIfNoPermission = require('./middlewares/errorIfNoPermission');
+const getRequestedResource = require('./middlewares/getRequestedResource');
+const getRequestedSelections = require('./middlewares/getRequestedSelections');
+const getTornRequestPath = require('./middlewares/getTornRequestPath');
+const getTornstatsRequestPath = require('./middlewares/getTornstatsRequestPath');
 
 const PORT = 3001;
-const PROXY_KEY_LENGTH = 32;
 
-async function getKeysForUserId(userId) {
+async function getAllKeys(userId) {
     return await database.query([
-        'select `key`, `user_id`, `description`, `created_at`, `revoked_at`',
+        'select `key`, `user_id`, `description`, `permissions`, `created_at`, `revoked_at`',
         'from `keys`',
         'where `user_id` = ?',
         'order by `created_at` asc',
@@ -37,99 +44,6 @@ function getCookieOptions() {
         sameSite: true,
     };
 }
-
-// returns tuple [decrypted_torn_key: string | null, revoked: bool]
-async function getTornKey(proxyKey) {
-    const [record] = await database.query([
-        'select `iv`, `torn_key`, `revoked_at`',
-        'from `users`',
-        'inner join `keys` on `keys`.`user_id` = `users`.`id`',
-        'where `key` = ?',
-    ].join(' '), [proxyKey]);
-
-    if (record === undefined) {
-        return [null, false];
-    }
-
-    return [
-        encryption.decrypt(record.iv, record.torn_key),
-        record.revoked_at !== null,
-    ];
-}
-
-function getParamsArray(request, tornKey) {
-    return Object.entries({ ...request.query, key: tornKey })
-        .map(([key, value]) => `${key}=${value}`);
-}
-
-function getProxyError(keyRevoked = false) {
-    return {
-        proxy: true,
-        proxy_code: keyRevoked ? 2 : 1,
-        proxy_error: keyRevoked ? 'Key revoked' : 'Key not found',
-    };
-}
-
-function resolvePathForTornStats(request) {
-    return new Promise(async (resolve, reject) => {
-        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
-            request._error = {
-                error: 'ERROR: User not found.',
-                ...getProxyError(),
-            };
-            return reject();
-        }
-
-        const [tornKey, revoked] = await getTornKey(request.query.key);
-        if (tornKey === null || revoked) {
-            request._error = {
-                error: 'ERROR: User not found.',
-                ...getProxyError(revoked),
-            };
-            return reject();
-        }
-
-        resolve('/api.php?' + getParamsArray(request, tornKey).join('&'));
-    });
-}
-
-function resolvePathForTorn(request) {
-    return new Promise(async (resolve, reject) => {
-        if ((request.query.key || '').length !== PROXY_KEY_LENGTH) {
-            request._error = {
-                code: 2,
-                error: 'Incorrect Key',
-                ...getProxyError(),
-            };
-            return reject();
-        }
-
-        const [tornKey, revoked] = await getTornKey(request.query.key);
-        if (tornKey === null || revoked) {
-            request._error = {
-                code: 2,
-                error: 'Incorrect Key',
-                ...getProxyError(revoked),
-            };
-            return reject();
-        }
-
-        const endpoint = request.url.split('?').shift();
-        const params = getParamsArray(request, tornKey);
-
-        resolve(`${endpoint}?${params.join('&')}`);
-    });
-}
-
-const proxyOptions = {
-    https: true,
-    proxyReqPathResolver(request) {
-        if (request.url.startsWith('/tornstats/api.php')) {
-            return resolvePathForTornStats(request);
-        }
-        return resolvePathForTorn(request);
-    },
-};
 
 app.post('/api/authenticate', async (request, response) => {
     const result = await fetch('https://api.torn.com/user/?selections=basic&key=' + request.body.key);
@@ -187,7 +101,7 @@ app.post('/api/lock', (request, response) => {
 app.get('/api/keys', async (request, response) => {
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        const keys = await getKeysForUserId(userId);
+        const keys = await getAllKeys(userId);
         return response.json(keys);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
@@ -197,12 +111,13 @@ app.get('/api/keys', async (request, response) => {
 app.post('/api/keys', async (request, response) => {
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('insert into `keys` (`key`, `user_id`, `description`) values (?, ?, ?)', [
+        await database.query('insert into `keys` (`key`, `user_id`, `description`, `permissions`) values (?, ?, ?, ?)', [
             crypto.randomBytes(16).toString('hex'),
             userId,
             request.body.description.trim().substr(0, 255),
+            '*',
         ]);
-        const keys = await getKeysForUserId(userId);
+        const keys = await getAllKeys(userId);
         return response.json(keys);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
@@ -210,39 +125,99 @@ app.post('/api/keys', async (request, response) => {
 });
 
 app.put('/api/keys/:key', async (request, response) => {
-    const revokedAt = typeof request.body.revoked_at === 'string'
-        ? new Date(request.body.revoked_at)
-        : null;
-
+    let userId;
     try {
-        const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('update `keys` set `revoked_at` = ? where `key` = ? and user_id = ?', [
-            revokedAt,
-            request.params.key,
-            userId,
-        ]);
-        const keys = await getKeysForUserId(userId);
-        return response.json(keys);
+        userId = await jwt.getUserId(request.cookies.jwt);
     } catch (error) {
         return response.status(401).json({ error_message: error.message });
     }
+
+    const updates = {};
+    if (request.body.revoked_at !== undefined) {
+        updates.revoked_at = typeof request.body.revoked_at === 'string'
+            ? new Date(request.body.revoked_at)
+            : null;
+    }
+    if (['*', 'public'].includes(request.body.permissions)) {
+        updates.permissions = request.body.permissions;
+    }
+
+    const updateQuery = [
+        'update `keys` set',
+        Object.keys(updates).map(field => `${field} = ?`).join(', '),
+        'where `key` = ? and `user_id` = ?'
+    ].join(' ');
+
+    await database.query(updateQuery, [
+        ...Object.values(updates),
+        request.params.key,
+        userId,
+    ]);
+    const keys = await getAllKeys(userId);
+
+    response.json(keys);
 });
 
-app.get('/tornstats/api.php', proxy('www.tornstats.com', proxyOptions), (request, response) => {
-    response
-        .status(400) // tornstats.com uses 400 for invalid requests
-        .json(request._error || {
-            error: 'ERROR: Undefined error.',
-            proxy: true,
-        });
-});
-
-app.get('/*', proxy('api.torn.com', proxyOptions), (request, response) => {
-    response.json(request._error || {
-        code: 0,
-        error: 'Undefined error',
+app.get(
+    '/tornstats/api.php',
+    getKey,
+    errorIfKeyNotFound({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
         proxy: true,
-    });
-});
+        proxy_code: 1,
+        proxy_error: 'Key not found',
+    }),
+    errorIfKeyRevoked({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
+        proxy: true,
+        proxy_code: 2,
+        proxy_error: 'Key revoked',
+    }),
+    getTornstatsRequestPath,
+    proxy('www.tornstats.com', { https: true, proxyReqPathResolver: req => req.locals.proxyPath }),
+    (req, res) => res.json({
+        error: 'ERROR: (tornstats error would go here if only it would make a bit more sense)',
+        proxy: true,
+        proxy_code: 0,
+        proxy_error: 'Failed to proxy the request to tornstats.com',
+    }),
+);
+
+app.get( // Make sure this route comes last as a catch-all for torn routes
+    '/*',
+    getKey,
+    errorIfKeyNotFound({
+        code: 2,
+        error: 'Incorrect Key',
+        proxy: true,
+        proxy_code: 1,
+        proxy_error: 'Key not found',
+    }),
+    errorIfKeyRevoked({
+        code: 2,
+        error: 'Incorrect Key',
+        proxy: true,
+        proxy_code: 2,
+        proxy_error: 'Key revoked',
+    }),
+    getRequestedResource,
+    getRequestedSelections,
+    errorIfNoPermission({
+        code: 7,
+        error: 'Incorrect ID-entity relation',
+        proxy: true,
+        proxy_code: 3,
+        proxy_error: 'Key forbids access to {subject}: {details}',
+    }),
+    getTornRequestPath,
+    proxy('api.torn.com', { https: true, proxyReqPathResolver: req => req.locals.proxyPath }),
+    (req, res) => res.json({
+        code: 0,
+        error: 'Unknown error',
+        proxy: true,
+        proxy_code: 0,
+        proxy_error: 'Failed to proxy the request to torn.com',
+    }),
+);
 
 app.listen(PORT, () => console.log(`TORN proxy server listening at http://localhost:${PORT}`));

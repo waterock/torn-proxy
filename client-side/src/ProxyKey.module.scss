@@ -1,9 +1,22 @@
-tr.metaRow td {
-  padding-bottom: 0;
+tr.metaRow, tr.keyRow {
+  td {
+    padding-bottom: 0;
+  }
 }
 
-tr.keyRow td {
-  padding-bottom: 0.5rem;
+tr.permissionsRow {
+  td:only-child {
+    color: steelblue;
+    font-size: .9rem;
+
+    .betaPermissions {
+      font-weight: bold;
+    }
+
+    label {
+      margin-right: .75rem;
+    }
+  }
 }
 
 tr.altRow {
