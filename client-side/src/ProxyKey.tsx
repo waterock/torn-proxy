@@ -62,8 +62,8 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
     ];
 
     const permissionOptions = {
-        '*': 'Public and private data',
-        'public': 'Public data only',
+        '*': 'Public+private',
+        'public': 'Public only',
     };
 
     return (
@@ -90,8 +90,9 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
                     </td>
                 )}
             </tr>
-            <tr className={styles.permissionsRow}>
+            <tr className={[...sharedRowStyles, styles.permissionsRow].join(' ')}>
                 <td colSpan={3}>
+                    <span className={styles.betaPermissions}>BETA permissions:</span>
                     {Object.entries(permissionOptions).map(([value, label]) => (
                         <label key={value}>
                             <input

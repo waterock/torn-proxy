@@ -6,7 +6,12 @@ tr.metaRow, tr.keyRow {
 
 tr.permissionsRow {
   td:only-child {
-    padding-left: .65rem;
+    color: steelblue;
+    font-size: .9rem;
+
+    .betaPermissions {
+      font-weight: bold;
+    }
 
     label {
       margin-right: .75rem;
