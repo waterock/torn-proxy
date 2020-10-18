@@ -19,6 +19,7 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
     const [newKeyDescription, setNewKeyDescription] = useState<string>('');
     const [savingNewKey, setSavingNewKey] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [keysReloadedCount, setKeysReloadedCount] = useState<number>(0);
 
     useEffect(function loadKeys() {
         setLoading(true);
@@ -69,12 +70,19 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
     function renderKeys(keys: Key[]) {
         return keys.map((key, i) => (
             <ProxyKey
-                key={key.key}
+                key={keysReloadedCount + '_' + key.key}
                 keyEntity={key}
                 useAltStyle={i % 2 !== 0}
-                onKeyUpdated={setKeys}
+                onKeyUpdated={keyUpdated}
             />
         ));
+    }
+
+    function keyUpdated(allKeys: Key[]) {
+        // By updating the keysReloadedCount (used as part of loop key), we achieve a re-render of the ProxyKey children.
+        // Without it, the `saving` state of the updated key would remain true, because somehow react applies an unwanted performance optimization despite reference UN-equality.
+        setKeysReloadedCount(keysReloadedCount + 1);
+        setKeys(allKeys);
     }
 
     if (errorMessage) {
