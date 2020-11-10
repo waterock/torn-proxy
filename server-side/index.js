@@ -1,5 +1,4 @@
 require('dotenv').config();
-const crypto = require('crypto');
 const express = require('express');
 const cookieParser = require('cookie-parser')
 const proxy = require('express-http-proxy');
@@ -101,22 +100,6 @@ app.post('/api/lock', (request, response) => {
 app.get('/api/keys', async (request, response) => {
     try {
         const userId = await jwt.getUserId(request.cookies.jwt);
-        const keys = await getAllKeys(userId);
-        return response.json(keys);
-    } catch (error) {
-        return response.status(401).json({ error_message: error.message });
-    }
-});
-
-app.post('/api/keys', async (request, response) => {
-    try {
-        const userId = await jwt.getUserId(request.cookies.jwt);
-        await database.query('insert into `keys` (`key`, `user_id`, `description`, `permissions`) values (?, ?, ?, ?)', [
-            crypto.randomBytes(16).toString('hex'),
-            userId,
-            request.body.description.trim().substr(0, 255),
-            '*',
-        ]);
         const keys = await getAllKeys(userId);
         return response.json(keys);
     } catch (error) {

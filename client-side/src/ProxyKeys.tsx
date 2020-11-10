@@ -16,8 +16,6 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
     const [loading, setLoading] = useState(false);
     const [keys, setKeys] = useState<Key[]>([]);
     const [showRevokedKeys, setShowRevokedKeys] = useState<boolean>(false);
-    const [newKeyDescription, setNewKeyDescription] = useState<string>('');
-    const [savingNewKey, setSavingNewKey] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [keysReloadedCount, setKeysReloadedCount] = useState<number>(0);
 
@@ -48,23 +46,6 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
     function lock(event: React.MouseEvent) {
         event.preventDefault();
         onLock();
-    }
-
-    async function createKey(event: React.FormEvent) {
-        event.preventDefault();
-
-        setSavingNewKey(true);
-        const response = await fetch(app.serverBaseUrl + '/api/keys', {
-            credentials: 'include',
-            method: 'post',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ description: newKeyDescription }),
-        })
-        const keys = (await response.json()).map(conversion.convertKeyRecordToEntity);
-        setKeys(keys);
-
-        setNewKeyDescription('');
-        setSavingNewKey(false);
     }
 
     function renderKeys(keys: Key[]) {
@@ -122,12 +103,10 @@ const ProxyKeys: FC<Props> = ({ onLock }) => {
                 )}
             </table>
             <div>
-                <h3>New key</h3>
-                <form action="" onSubmit={createKey}>
-                    <input type="text" placeholder="Description" value={newKeyDescription} onChange={(event) => setNewKeyDescription(event.target.value)} disabled={savingNewKey}/>
-                    <input type="submit" value="Create key" disabled={savingNewKey}/>
-                    {savingNewKey && <span>creating key...</span>}
-                </form>
+                <h3>New key? Nope!</h3>
+                <p>It is no longer possible to create new keys. The <a href="https://www.torn.com/forums.php#/p=threads&f=63&t=16178384" target="_blank" rel="noopener">forum thread</a> explains why. Basically we're unable to guarantee service with the IP rate limit in place, and Ched isn't going to make any exceptions.</p>
+                <p>I recommend reverting to the use of TORN keys.</p>
+                <p>Existing keys will remain functional for a little while to ease the transition. But please switch back to TORN keys at your earliest convenience.</p>
             </div>
         </>
     )
