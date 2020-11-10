@@ -92,7 +92,7 @@ const ProxyKey: FC<Props> = ({ keyEntity: key, useAltStyle, onKeyUpdated }) => {
             </tr>
             <tr className={[...sharedRowStyles, styles.permissionsRow].join(' ')}>
                 <td colSpan={3}>
-                    <span className={styles.betaPermissions}>BETA permissions:</span>
+                    <span className={styles.betaPermissions}>Permissions: </span>
                     {Object.entries(permissionOptions).map(([value, label]) => (
                         <label key={value}>
                             <input
