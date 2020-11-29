@@ -1,7 +1,2 @@
 .DS_Store
 /.idea
-
-/client-side/node_modules
-
-/server-side/node_modules
-/server-side/.env
